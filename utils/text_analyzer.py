@@ -8,8 +8,7 @@ from collections import Counter
 nltk.download('punkt')
 nltk.download('stopwords')
 nltk.download('averaged_perceptron_tagger')
-nltk.download('perceptron_tagger')  # Add this line
-nltk.download('universal_tagset')   # Add this line
+nltk.download('universal_tagset')
 
 class TextAnalyzer:
     def __init__(self):
@@ -58,8 +57,11 @@ class TextAnalyzer:
             tokens = word_tokenize(sentence)
             try:
                 pos_tags = nltk.pos_tag(tokens)
-            except LookupError:
-                pos_tags = nltk.pos_tag(tokens, tagset='universal')
+            except Exception as e:
+                try:
+                    pos_tags = nltk.pos_tag(tokens, tagset='universal')
+                except Exception as e:
+                    return []  # Graceful fallback if tagging fails
             
             # Extract verbs
             verbs = [word for word, pos in pos_tags if pos.startswith('VB') or pos == 'VERB']
