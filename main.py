@@ -1,10 +1,15 @@
 import streamlit as st
 import pandas as pd
 import json
+import logging
 from utils.pdf_processor import PDFProcessor
 from utils.text_analyzer import TextAnalyzer
 from utils.visualizer import Visualizer
 from utils.course_recommender import CourseRecommender
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Page configuration
 st.set_page_config(
@@ -135,46 +140,100 @@ if file1 and file2:
         with tab4:
             st.header("AI-Powered Course Recommendations")
             
-            with st.spinner("Generating course recommendations..."):
+            # Add retry button for recommendations
+            if 'recommendation_retries' not in st.session_state:
+                st.session_state.recommendation_retries = 0
+            
+            retry_col1, retry_col2 = st.columns([3, 1])
+            with retry_col2:
+                if st.button("🔄 Retry Analysis", key="retry_button"):
+                    st.session_state.recommendation_retries += 1
+                    st.experimental_rerun()
+            
+            with st.spinner("Analyzing syllabi and generating recommendations..."):
                 try:
                     # Get recommendations based on both syllabi
-                    recommendations = json.loads(course_recommender.generate_recommendations(text1 + "\n" + text2))
-                    
-                    # Get similarity analysis
-                    similarity_analysis = json.loads(course_recommender.analyze_similarity(text1, text2))
+                    if not text1 or not text2:
+                        st.warning("Unable to process syllabi content. Please ensure both files are properly uploaded.")
+                        recommendations = {"recommendations": []}
+                        similarity_analysis = {
+                            "similarity_analysis": {
+                                "overall_similarity": "N/A",
+                                "complementary_aspects": [],
+                                "key_differences": [],
+                                "progression_path": "N/A"
+                            }
+                        }
+                    else:
+                        recommendations = json.loads(course_recommender.generate_recommendations(
+                            text1 + "\n" + text2))
+                        similarity_analysis = json.loads(course_recommender.analyze_similarity(
+                            text1, text2))
                     
                     # Display similarity analysis
                     st.subheader("Course Similarity Analysis")
                     analysis = similarity_analysis.get("similarity_analysis", {})
-                    st.write(analysis.get("overall_similarity", "Analysis not available"))
                     
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        st.markdown("### Complementary Aspects")
-                        for aspect in analysis.get("complementary_aspects", []):
-                            st.markdown(f"- {aspect}")
+                    # Check for errors in similarity analysis
+                    if "error" in analysis.get("overall_similarity", ""):
+                        st.error(f"Error in similarity analysis: {analysis['overall_similarity']}")
+                        st.info("Try uploading the files again or click the retry button above.")
+                    else:
+                        st.write(analysis.get("overall_similarity", "Analysis not available"))
+                        
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            st.markdown("### Complementary Aspects")
+                            aspects = analysis.get("complementary_aspects", [])
+                            if aspects:
+                                for aspect in aspects:
+                                    st.markdown(f"- {aspect}")
+                            else:
+                                st.info("No complementary aspects found")
+                        
+                        with col2:
+                            st.markdown("### Key Differences")
+                            differences = analysis.get("key_differences", [])
+                            if differences:
+                                for diff in differences:
+                                    st.markdown(f"- {diff}")
+                            else:
+                                st.info("No key differences found")
+                        
+                        st.markdown("### Progression Path")
+                        st.write(analysis.get("progression_path", "Analysis not available"))
                     
-                    with col2:
-                        st.markdown("### Key Differences")
-                        for diff in analysis.get("key_differences", []):
-                            st.markdown(f"- {diff}")
-                    
-                    st.markdown("### Progression Path")
-                    st.write(analysis.get("progression_path", "Analysis not available"))
-                    
-                    # Display recommendations
+                    # Display recommendations with error handling
                     st.subheader("Recommended Related Courses")
-                    for rec in recommendations.get("recommendations", []):
-                        with st.expander(f"📘 {rec['title']}"):
-                            st.markdown(f"**Description:** {rec['description']}")
-                            st.markdown("**Key Topics:**")
-                            for topic in rec['key_topics']:
-                                st.markdown(f"- {topic}")
-                            st.markdown(f"**Why it's relevant:** {rec['relevance']}")
+                    
+                    if "error" in recommendations:
+                        st.error(f"Error generating recommendations: {recommendations['error']}")
+                        st.info("Try uploading the files again or click the retry button above.")
+                    else:
+                        recs = recommendations.get("recommendations", [])
+                        if not recs:
+                            st.warning("No course recommendations available. Try uploading different syllabi or click the retry button.")
+                        else:
+                            for rec in recs:
+                                with st.expander(f"📘 {rec['title']}"):
+                                    st.markdown(f"**Description:** {rec['description']}")
+                                    st.markdown("**Key Topics:**")
+                                    for topic in rec.get('key_topics', []):
+                                        st.markdown(f"- {topic}")
+                                    st.markdown(f"**Why it's relevant:** {rec['relevance']}")
+                
+                except json.JSONDecodeError as e:
+                    logger.error(f"JSON parsing error: {str(e)}")
+                    st.error("Error processing API response. Please try again.")
+                    st.info("If the error persists, try uploading the files again or click the retry button.")
+                
                 except Exception as e:
-                    st.error("Error generating recommendations. Please try again.")
+                    logger.error(f"Unexpected error in recommendations tab: {str(e)}")
+                    st.error(f"An unexpected error occurred: {str(e)}")
+                    st.info("Please try again or contact support if the issue persists.")
 
     except Exception as e:
+        logger.error(f"Error processing syllabi: {str(e)}")
         st.error(f"An error occurred while processing the syllabi: {str(e)}")
 else:
     st.info("Please upload both syllabi to begin the analysis.")
