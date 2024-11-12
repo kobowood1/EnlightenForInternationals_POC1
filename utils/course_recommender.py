@@ -65,7 +65,7 @@ class CourseRecommender:
         try:
             logger.info("Sending recommendation request to OpenAI API")
             response = self.client.chat.completions.create(
-                model="gpt-4",
+                model="gpt-3.5-turbo",
                 messages=[{"role": "user", "content": prompt}],
                 response_format={"type": "json_object"}
             )
@@ -113,7 +113,7 @@ class CourseRecommender:
         try:
             logger.info("Sending similarity analysis request to OpenAI API")
             response = self.client.chat.completions.create(
-                model="gpt-4",
+                model="gpt-3.5-turbo",
                 messages=[{"role": "user", "content": prompt}],
                 response_format={"type": "json_object"}
             )
