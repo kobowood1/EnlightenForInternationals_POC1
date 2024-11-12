@@ -9,6 +9,7 @@ nltk.download('punkt')
 nltk.download('stopwords')
 nltk.download('averaged_perceptron_tagger')
 nltk.download('universal_tagset')
+nltk.download('punkt_tab')
 
 class TextAnalyzer:
     def __init__(self):
@@ -16,6 +17,8 @@ class TextAnalyzer:
 
     def extract_key_topics(self, text):
         """Extract key topics from text using frequency analysis."""
+        if not text:
+            return {}
         tokens = word_tokenize(text.lower())
         tokens = [token for token in tokens if token.isalnum() and token not in self.stop_words]
         
@@ -25,7 +28,15 @@ class TextAnalyzer:
 
     def compare_sections(self, section1, section2):
         """Compare two sections and identify similarities and differences."""
-        # Tokenize sections
+        if not section1 or not section2:
+            return {
+                'common': [],
+                'unique_to_first': [],
+                'unique_to_second': [],
+                'similarity_score': 0.0
+            }
+            
+        # Tokenize sections using standard punkt tokenizer
         tokens1 = set(word_tokenize(section1.lower()))
         tokens2 = set(word_tokenize(section2.lower()))
         
@@ -54,18 +65,14 @@ class TextAnalyzer:
         action_verbs = []
         
         for sentence in sentences:
-            tokens = word_tokenize(sentence)
             try:
+                tokens = word_tokenize(sentence)
                 pos_tags = nltk.pos_tag(tokens)
+                # Extract verbs
+                verbs = [word for word, pos in pos_tags if pos.startswith('VB')]
+                action_verbs.extend(verbs)
             except Exception as e:
-                try:
-                    pos_tags = nltk.pos_tag(tokens, tagset='universal')
-                except Exception as e:
-                    return []  # Graceful fallback if tagging fails
-            
-            # Extract verbs
-            verbs = [word for word, pos in pos_tags if pos.startswith('VB') or pos == 'VERB']
-            action_verbs.extend(verbs)
+                continue  # Skip problematic sentences
         
         verb_counts = Counter(action_verbs).most_common(5)
         return [(verb, count) for verb, count in verb_counts]

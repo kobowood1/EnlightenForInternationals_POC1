@@ -43,7 +43,7 @@ class CourseRecommender:
             logger.warning("Empty syllabus text provided")
             return '{"recommendations": []}'
             
-        prompt = json.dumps({
+        prompt = {
             "task": "course_recommendations",
             "syllabus_content": syllabus_text,
             "num_recommendations": num_recommendations,
@@ -57,13 +57,13 @@ class CourseRecommender:
                     }
                 ]
             }
-        })
+        }
 
         try:
             logger.info("Sending recommendation request to OpenAI API")
             response = self.client.chat.completions.create(
-                model="gpt-4",
-                messages=[{"role": "user", "content": prompt}],
+                model="gpt-4o",
+                messages=[{"role": "user", "content": json.dumps(prompt)}],
                 response_format={"type": "json_object"}
             )
             response_content = response.choices[0].message.content
@@ -97,7 +97,7 @@ class CourseRecommender:
             logger.warning("Empty syllabus text provided for similarity analysis")
             return '{"similarity_analysis": {"overall_similarity": "N/A", "complementary_aspects": [], "key_differences": [], "progression_path": "N/A"}}'
             
-        prompt = json.dumps({
+        prompt = {
             "task": "syllabus_comparison",
             "syllabus1": syllabus1_text,
             "syllabus2": syllabus2_text,
@@ -109,13 +109,13 @@ class CourseRecommender:
                     "progression_path": "Whether these courses form a logical progression"
                 }
             }
-        })
+        }
 
         try:
             logger.info("Sending similarity analysis request to OpenAI API")
             response = self.client.chat.completions.create(
-                model="gpt-4",
-                messages=[{"role": "user", "content": prompt}],
+                model="gpt-4o",
+                messages=[{"role": "user", "content": json.dumps(prompt)}],
                 response_format={"type": "json_object"}
             )
             response_content = response.choices[0].message.content
