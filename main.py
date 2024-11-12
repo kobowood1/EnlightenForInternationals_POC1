@@ -148,7 +148,11 @@ if file1 and file2:
             with retry_col2:
                 if st.button("🔄 Retry Analysis", key="retry_button"):
                     st.session_state.recommendation_retries += 1
-                    st.experimental_rerun()
+                    try:
+                        st.rerun()
+                    except Exception as e:
+                        logger.error(f"Error during rerun: {str(e)}")
+                        st.error("Failed to refresh the analysis. Please try uploading the files again.")
             
             with st.spinner("Analyzing syllabi and generating recommendations..."):
                 try:

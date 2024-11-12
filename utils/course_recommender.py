@@ -13,6 +13,10 @@ class CourseRecommender:
 
     def validate_json_response(self, response_text):
         """Validate JSON response from OpenAI API."""
+        if not response_text:
+            logger.error("Empty response text")
+            return False
+            
         try:
             data = json.loads(response_text)
             # Validate recommendations structure
@@ -39,32 +43,35 @@ class CourseRecommender:
             logger.warning("Empty syllabus text provided")
             return '{"recommendations": []}'
             
-        prompt = f"""Please analyze the following syllabus content and provide exactly {num_recommendations} course recommendations.
-        Format your response as a valid JSON object with the following structure:
-        {{
-            "recommendations": [
-                {{
-                    "title": "Course title",
-                    "description": "Brief description",
-                    "key_topics": ["topic1", "topic2", "topic3"],
-                    "relevance": "Why this course is relevant"
-                }}
-            ]
-        }}
-
-        Syllabus content:
-        {syllabus_text}
-        """
+        prompt = json.dumps({
+            "task": "course_recommendations",
+            "syllabus_content": syllabus_text,
+            "num_recommendations": num_recommendations,
+            "output_format": {
+                "recommendations": [
+                    {
+                        "title": "Course title",
+                        "description": "Brief description",
+                        "key_topics": ["topic1", "topic2", "topic3"],
+                        "relevance": "Why this course is relevant"
+                    }
+                ]
+            }
+        })
 
         try:
             logger.info("Sending recommendation request to OpenAI API")
             response = self.client.chat.completions.create(
-                model="gpt-3.5-turbo-instruct",
-                messages=[{"role": "user", "content": prompt}]
+                model="gpt-4",
+                messages=[{"role": "user", "content": prompt}],
+                response_format={"type": "json_object"}
             )
             response_content = response.choices[0].message.content
             
-            # Try to parse and validate JSON response
+            if not response_content:
+                logger.error("Empty response from OpenAI API")
+                return '{"recommendations": [], "error": "Empty response from API"}'
+            
             try:
                 json_response = json.loads(response_content)
                 if self.validate_json_response(response_content):
@@ -90,33 +97,33 @@ class CourseRecommender:
             logger.warning("Empty syllabus text provided for similarity analysis")
             return '{"similarity_analysis": {"overall_similarity": "N/A", "complementary_aspects": [], "key_differences": [], "progression_path": "N/A"}}'
             
-        prompt = f"""Compare the following two syllabi and provide detailed insights about their similarities, differences, and potential complementary aspects.
-        Format your response as a valid JSON object with the following structure:
-        {{
-            "similarity_analysis": {{
-                "overall_similarity": "Brief description of overall similarity",
-                "complementary_aspects": ["aspect1", "aspect2"],
-                "key_differences": ["difference1", "difference2"],
-                "progression_path": "Whether these courses form a logical progression"
-            }}
-        }}
-
-        Syllabus 1:
-        {syllabus1_text}
-
-        Syllabus 2:
-        {syllabus2_text}
-        """
+        prompt = json.dumps({
+            "task": "syllabus_comparison",
+            "syllabus1": syllabus1_text,
+            "syllabus2": syllabus2_text,
+            "output_format": {
+                "similarity_analysis": {
+                    "overall_similarity": "Brief description of overall similarity",
+                    "complementary_aspects": ["aspect1", "aspect2"],
+                    "key_differences": ["difference1", "difference2"],
+                    "progression_path": "Whether these courses form a logical progression"
+                }
+            }
+        })
 
         try:
             logger.info("Sending similarity analysis request to OpenAI API")
             response = self.client.chat.completions.create(
-                model="gpt-3.5-turbo-instruct",
-                messages=[{"role": "user", "content": prompt}]
+                model="gpt-4",
+                messages=[{"role": "user", "content": prompt}],
+                response_format={"type": "json_object"}
             )
             response_content = response.choices[0].message.content
             
-            # Try to parse and validate JSON response
+            if not response_content:
+                logger.error("Empty response from OpenAI API")
+                return '{"similarity_analysis": {"overall_similarity": "Error: Empty response from API", "complementary_aspects": [], "key_differences": [], "progression_path": "N/A"}}'
+            
             try:
                 json_response = json.loads(response_content)
                 if self.validate_json_response(response_content):
