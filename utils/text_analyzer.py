@@ -6,6 +6,7 @@ from collections import Counter
 
 # Download required NLTK data
 nltk.download('punkt')
+nltk.download('punkt_tab')
 nltk.download('stopwords')
 nltk.download('averaged_perceptron_tagger')
 
@@ -46,6 +47,9 @@ class TextAnalyzer:
 
     def analyze_learning_outcomes(self, text):
         """Analyze learning outcomes using verb analysis."""
+        if not text:
+            return []
+            
         sentences = sent_tokenize(text)
         action_verbs = []
         
@@ -57,4 +61,5 @@ class TextAnalyzer:
             verbs = [word for word, pos in pos_tags if pos.startswith('VB')]
             action_verbs.extend(verbs)
         
-        return Counter(action_verbs).most_common(5)
+        verb_counts = Counter(action_verbs).most_common(5)
+        return [(verb, count) for verb, count in verb_counts]
