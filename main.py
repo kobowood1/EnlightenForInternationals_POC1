@@ -3,6 +3,7 @@ import pandas as pd
 from utils.pdf_processor import PDFProcessor
 from utils.text_analyzer import TextAnalyzer
 from utils.visualizer import Visualizer
+from utils.recommendation_engine import RecommendationEngine
 
 # Page configuration
 st.set_page_config(
@@ -19,6 +20,11 @@ with open('assets/style.css') as f:
 pdf_processor = PDFProcessor()
 text_analyzer = TextAnalyzer()
 visualizer = Visualizer()
+recommendation_engine = RecommendationEngine()
+
+# Session state for storing analyzed syllabi
+if 'analyzed_syllabi' not in st.session_state:
+    st.session_state.analyzed_syllabi = []
 
 # Title and description
 st.title("📚 Course Syllabus Analyzer")
@@ -49,8 +55,19 @@ if file1 and file2:
             sections1 = pdf_processor.extract_sections(text1)
             sections2 = pdf_processor.extract_sections(text2)
 
+            # Get course recommendations
+            with st.spinner("Analyzing syllabi for recommendations..."):
+                syllabus1_analysis = recommendation_engine.analyze_syllabus(sections1)
+                syllabus2_analysis = recommendation_engine.analyze_syllabus(sections2)
+                
+                # Store analyses in session state
+                if syllabus1_analysis not in st.session_state.analyzed_syllabi:
+                    st.session_state.analyzed_syllabi.append(syllabus1_analysis)
+                if syllabus2_analysis not in st.session_state.analyzed_syllabi:
+                    st.session_state.analyzed_syllabi.append(syllabus2_analysis)
+
         # Analysis tabs
-        tab1, tab2, tab3 = st.tabs(["Overview", "Detailed Comparison", "Learning Outcomes"])
+        tab1, tab2, tab3, tab4 = st.tabs(["Overview", "Detailed Comparison", "Learning Outcomes", "Recommendations"])
         
         # Overview Tab
         with tab1:
@@ -109,15 +126,59 @@ if file1 and file2:
             col1, col2 = st.columns(2)
             with col1:
                 st.markdown("### First Syllabus Action Verbs")
-                st.write(pd.DataFrame(outcomes1, columns=['Verb', 'Count']))
+                outcomes_df1 = pd.DataFrame(outcomes1, columns=['Action Verb', 'Frequency'])
+                st.write(outcomes_df1)
             with col2:
                 st.markdown("### Second Syllabus Action Verbs")
-                st.write(pd.DataFrame(outcomes2, columns=['Verb', 'Count']))
+                outcomes_df2 = pd.DataFrame(outcomes2, columns=['Action Verb', 'Frequency'])
+                st.write(outcomes_df2)
             
             # Display learning outcomes comparison chart
             st.plotly_chart(visualizer.create_learning_outcomes_chart(
                 dict(outcomes1), dict(outcomes2)
             ))
+
+        # Recommendations Tab
+        with tab4:
+            st.header("Course Recommendations")
+            
+            # Generate recommendations for both syllabi
+            if len(st.session_state.analyzed_syllabi) > 0:
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    st.subheader("Based on First Syllabus")
+                    recommendations1 = recommendation_engine.generate_recommendations(
+                        syllabus1_analysis,
+                        [s for s in st.session_state.analyzed_syllabi if s != syllabus1_analysis]
+                    )
+                    
+                    if recommendations1:
+                        for rec in recommendations1:
+                            with st.expander(f"📘 {rec['title']} (Similarity: {rec['similarity_score']:.2%})"):
+                                st.markdown("**Why this course?**")
+                                for reason in rec['reasons']:
+                                    st.markdown(f"- {reason}")
+                    else:
+                        st.info("No similar courses found yet. Upload more syllabi for better recommendations.")
+
+                with col2:
+                    st.subheader("Based on Second Syllabus")
+                    recommendations2 = recommendation_engine.generate_recommendations(
+                        syllabus2_analysis,
+                        [s for s in st.session_state.analyzed_syllabi if s != syllabus2_analysis]
+                    )
+                    
+                    if recommendations2:
+                        for rec in recommendations2:
+                            with st.expander(f"📘 {rec['title']} (Similarity: {rec['similarity_score']:.2%})"):
+                                st.markdown("**Why this course?**")
+                                for reason in rec['reasons']:
+                                    st.markdown(f"- {reason}")
+                    else:
+                        st.info("No similar courses found yet. Upload more syllabi for better recommendations.")
+            else:
+                st.info("Upload syllabi to get course recommendations.")
 
     except Exception as e:
         st.error(f"An error occurred while processing the syllabi: {str(e)}")
