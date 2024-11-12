@@ -6,9 +6,10 @@ from collections import Counter
 
 # Download required NLTK data
 nltk.download('punkt')
-nltk.download('punkt_tab')
 nltk.download('stopwords')
 nltk.download('averaged_perceptron_tagger')
+nltk.download('perceptron_tagger')  # Add this line
+nltk.download('universal_tagset')   # Add this line
 
 class TextAnalyzer:
     def __init__(self):
@@ -55,10 +56,13 @@ class TextAnalyzer:
         
         for sentence in sentences:
             tokens = word_tokenize(sentence)
-            pos_tags = nltk.pos_tag(tokens)
+            try:
+                pos_tags = nltk.pos_tag(tokens)
+            except LookupError:
+                pos_tags = nltk.pos_tag(tokens, tagset='universal')
             
             # Extract verbs
-            verbs = [word for word, pos in pos_tags if pos.startswith('VB')]
+            verbs = [word for word, pos in pos_tags if pos.startswith('VB') or pos == 'VERB']
             action_verbs.extend(verbs)
         
         verb_counts = Counter(action_verbs).most_common(5)
