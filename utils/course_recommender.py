@@ -39,14 +39,8 @@ class CourseRecommender:
             logger.warning("Empty syllabus text provided")
             return '{"recommendations": []}'
             
-        prompt = f"""
-        Based on the following syllabus content, provide {num_recommendations} course recommendations.
-        For each recommendation, include:
-        - Course title
-        - Brief description
-        - Key topics
-        - Why it's relevant
-        Return the response in JSON format with the following structure:
+        prompt = f"""Please analyze the following syllabus content and provide exactly {num_recommendations} course recommendations.
+        Format your response as a valid JSON object with the following structure:
         {{
             "recommendations": [
                 {{
@@ -65,18 +59,23 @@ class CourseRecommender:
         try:
             logger.info("Sending recommendation request to OpenAI API")
             response = self.client.chat.completions.create(
-                model="gpt-3.5-turbo",
-                messages=[{"role": "user", "content": prompt}],
-                response_format={"type": "json_object"}
+                model="gpt-3.5-turbo-instruct",
+                messages=[{"role": "user", "content": prompt}]
             )
             response_content = response.choices[0].message.content
             
-            if not self.validate_json_response(response_content):
-                logger.error("Invalid JSON response format from API")
-                return '{"recommendations": [], "error": "Invalid response format"}'
-                
-            logger.info("Successfully generated recommendations")
-            return response_content
+            # Try to parse and validate JSON response
+            try:
+                json_response = json.loads(response_content)
+                if self.validate_json_response(response_content):
+                    logger.info("Successfully generated recommendations")
+                    return json.dumps(json_response)
+                else:
+                    logger.error("Invalid JSON structure in API response")
+                    return '{"recommendations": [], "error": "Invalid response structure"}'
+            except json.JSONDecodeError:
+                logger.error("Failed to parse JSON from API response")
+                return '{"recommendations": [], "error": "Invalid JSON response"}'
             
         except Exception as e:
             logger.error(f"Error generating recommendations: {str(e)}")
@@ -91,9 +90,8 @@ class CourseRecommender:
             logger.warning("Empty syllabus text provided for similarity analysis")
             return '{"similarity_analysis": {"overall_similarity": "N/A", "complementary_aspects": [], "key_differences": [], "progression_path": "N/A"}}'
             
-        prompt = f"""
-        Compare the following two syllabi and provide detailed insights about their similarities,
-        differences, and potential complementary aspects. Return the response in JSON format:
+        prompt = f"""Compare the following two syllabi and provide detailed insights about their similarities, differences, and potential complementary aspects.
+        Format your response as a valid JSON object with the following structure:
         {{
             "similarity_analysis": {{
                 "overall_similarity": "Brief description of overall similarity",
@@ -113,18 +111,23 @@ class CourseRecommender:
         try:
             logger.info("Sending similarity analysis request to OpenAI API")
             response = self.client.chat.completions.create(
-                model="gpt-3.5-turbo",
-                messages=[{"role": "user", "content": prompt}],
-                response_format={"type": "json_object"}
+                model="gpt-3.5-turbo-instruct",
+                messages=[{"role": "user", "content": prompt}]
             )
             response_content = response.choices[0].message.content
             
-            if not self.validate_json_response(response_content):
-                logger.error("Invalid JSON response format from API")
-                return '{"similarity_analysis": {"overall_similarity": "Error: Invalid response format", "complementary_aspects": [], "key_differences": [], "progression_path": "N/A"}}'
-            
-            logger.info("Successfully generated similarity analysis")
-            return response_content
+            # Try to parse and validate JSON response
+            try:
+                json_response = json.loads(response_content)
+                if self.validate_json_response(response_content):
+                    logger.info("Successfully generated similarity analysis")
+                    return json.dumps(json_response)
+                else:
+                    logger.error("Invalid JSON structure in API response")
+                    return '{"similarity_analysis": {"overall_similarity": "Error: Invalid response structure", "complementary_aspects": [], "key_differences": [], "progression_path": "N/A"}}'
+            except json.JSONDecodeError:
+                logger.error("Failed to parse JSON from API response")
+                return '{"similarity_analysis": {"overall_similarity": "Error: Invalid JSON response", "complementary_aspects": [], "key_differences": [], "progression_path": "N/A"}}'
             
         except Exception as e:
             logger.error(f"Error analyzing similarity: {str(e)}")
