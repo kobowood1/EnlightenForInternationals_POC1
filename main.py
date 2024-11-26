@@ -6,6 +6,7 @@ from utils.pdf_processor import PDFProcessor
 from utils.text_analyzer import TextAnalyzer
 from utils.visualizer import Visualizer
 from utils.course_recommender import CourseRecommender
+from utils.database import save_comparison, get_comparison_history
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -58,7 +59,7 @@ if file1 and file2:
             sections2 = pdf_processor.extract_sections(text2)
 
         # Analysis tabs
-        tab1, tab2, tab3, tab4 = st.tabs(["Overview", "Detailed Comparison", "Learning Outcomes", "Course Recommendations"])
+        tab1, tab2, tab3, tab4, tab5 = st.tabs(["Overview", "Detailed Comparison", "Learning Outcomes", "Course Recommendations", "History"])
         
         # Overview Tab
         with tab1:
@@ -139,6 +140,33 @@ if file1 and file2:
         # Course Recommendations Tab
         with tab4:
             st.header("AI-Powered Course Recommendations")
+        # History Tab
+        with tab5:
+            st.header("Comparison History")
+            try:
+                history = get_comparison_history()
+                if not history:
+                    st.info("No comparison history available yet.")
+                else:
+                    for entry in history:
+                        with st.expander(f"{entry['syllabus1_name']} vs {entry['syllabus2_name']} - {entry['timestamp']}"):
+                            st.markdown(f"**Similarity Score:** {entry['similarity_score']:.2%}")
+                            
+                            # Display topics comparison
+                            st.subheader("Topics Comparison")
+                            if entry['comparison_data'].get('topics_comparison'):
+                                topics_data = entry['comparison_data']['topics_comparison']
+                                st.write("First Syllabus Topics:", topics_data['topics1'])
+                                st.write("Second Syllabus Topics:", topics_data['topics2'])
+                            
+                            # Display recommendations
+                            st.subheader("Recommendations")
+                            for rec in entry['recommendations']:
+                                st.markdown(f"- {rec['title']}: {rec['description']}")
+            except Exception as e:
+                logger.error(f"Error displaying comparison history: {str(e)}")
+                st.error("Could not load comparison history.")
+
             
             # Add retry button for recommendations
             if 'recommendation_retries' not in st.session_state:
@@ -236,6 +264,32 @@ if file1 and file2:
                     st.error(f"An unexpected error occurred: {str(e)}")
                     st.info("Please try again or contact support if the issue persists.")
 
+            # Save comparison to history
+            try:
+                history_data = {
+                    'topics_comparison': {
+                        'topics1': topics1,
+                        'topics2': topics2
+                    },
+                    'sections_comparison': {
+                        section: text_analyzer.compare_sections(sections1[section], sections2[section])
+                        for section in sections1.keys()
+                    },
+                    'learning_outcomes': {
+                        'syllabus1': outcomes1,
+                        'syllabus2': outcomes2
+                    }
+                }
+                save_comparison(
+                    syllabus1_name=file1.name,
+                    syllabus2_name=file2.name,
+                    similarity_score=comparison['similarity_score'],
+                    comparison_data=history_data,
+                    recommendations=recommendations.get('recommendations', [])
+                )
+            except Exception as e:
+                logger.error(f"Error saving comparison history: {str(e)}")
+                st.warning("Could not save comparison to history.")
     except Exception as e:
         logger.error(f"Error processing syllabi: {str(e)}")
         st.error(f"An error occurred while processing the syllabi: {str(e)}")
