@@ -62,12 +62,11 @@ class CourseRecommender:
 
         try:
             logger.info("Sending recommendation request to OpenAI API")
-            response = self.client.chat.completions.create(
-                model="gpt-3.5-turbo",
-                messages=[
-                    {"role": "system", "content": "You are a course recommendation assistant. Always respond in valid JSON format."},
-                    {"role": "user", "content": json.dumps(prompt)}
-                ]
+            response = self.client.completions.create(
+                model="gpt-3.5-turbo-instruct",
+                prompt="You are a course recommendation assistant. Always respond in valid JSON format.\n\n" + json.dumps(prompt),
+                max_tokens=1000,
+                temperature=0.7
             )
             response_content = response.choices[0].message.content
             
@@ -132,12 +131,11 @@ class CourseRecommender:
 
         try:
             logger.info("Sending similarity analysis request to OpenAI API")
-            response = self.client.chat.completions.create(
-                model="gpt-3.5-turbo",
-                messages=[
-                    {"role": "system", "content": "You are a syllabus analysis assistant. Always respond in valid JSON format."},
-                    {"role": "user", "content": json.dumps(prompt)}
-                ]
+            response = self.client.completions.create(
+                model="gpt-3.5-turbo-instruct",
+                prompt="You are a syllabus analysis assistant. Always respond in valid JSON format.\n\n" + json.dumps(prompt),
+                max_tokens=1000,
+                temperature=0.7
             )
             response_content = response.choices[0].message.content
             
